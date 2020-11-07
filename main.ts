@@ -1,9 +1,5 @@
 import { Plugin } from 'obsidian';
-import { cleanUUIdsAndIllegalChar, replaceEncodedSpaceWithSpace } from 'regex';
-
-function cleanURIs(content: string) {
-	return replaceEncodedSpaceWithSpace(cleanUUIdsAndIllegalChar(content));
-}
+import { cleanURIs } from 'regex';
 
 export default class FormatNotionPlugin extends Plugin {
 	async onload() {

@@ -1,3 +1,5 @@
+import { basename } from 'path';
+
 export const ObsidianIllegalNameRegex = /[\*\"\/\<\>\:\|\?]/g;
 export const URLRegex = /(:\/\/)|(w{3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/;
 
@@ -68,3 +70,22 @@ export const cleanUUIdsAndIllegalChar = (content: string) => replaceIllegalObsid
  * - Remove all the illegal char for the references. (Do not use on links or on paths)!!)
  */
 export const sanatizeObsidianRefLink = (content: string) => capReferenceLength(cleanUUIdsAndIllegalChar(content))
+
+export const matchMdPathWithoutSpace = (content: string) => content.match(/([^ ]+\.[a-zA-Z0-9]+)/g);
+
+export function cleanURIs(content: string) {
+    const mdPaths = matchMdPathWithoutSpace(content)
+    if (!mdPaths) {
+        console.log(mdPaths)
+        return content;
+    }
+    for (const path of mdPaths) {
+        const decodedPath = removeUUIDs(decodeURI(path));
+        let reference = decodedPath;
+        if (decodedPath.endsWith('.md')) {
+            reference = capReferenceLength(basename(decodedPath, '.[0-9a-z]'));
+        }
+        content = content.replace(path, `[[${reference}]]`);
+    }
+    return content;
+}
