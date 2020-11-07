@@ -15,23 +15,13 @@ export class ConfigureIframeModal extends Modal {
 	onOpen() {
 		let { contentEl } = this;
 
+		const container = contentEl.createEl('div');
+		container.className = 'iframe__container';
+
 		const title = contentEl.createEl('h2');
 		title.innerText = "This is how the iframe is going to look (your can choose the size)";
 
 		const iframe = createIframeEl(contentEl, this.url);
-		iframe.onload = (ev) => {
-			console.log('iframe is loaded!');
-
-			if (isIframeCorrectlyLoaded(iframe)) {
-				iframe.style.display = 'block';
-			} else {
-				const errorMessage = contentEl.createEl('h2');
-				errorMessage.innerText = `Sorry, the website doesn't allow iframe: ${url}`;
-				iframe.insertAfter(errorMessage);
-				iframe.remove();
-			}
-		};
-
 		const widthCheckbox = createShouldUseDefaultWidthCheckbox(iframe);
 
 		const okButton = contentEl.createEl('button');
@@ -57,8 +47,6 @@ export class ConfigureIframeModal extends Modal {
 		buttonContainer.appendChild(okButton);
 		buttonContainer.appendChild(cancelButton);
 
-		const container = contentEl.createEl('div');
-		container.className = 'iframe__container';
 		container.appendChild(title);
 		container.appendChild(widthCheckbox);
 		container.appendChild(iframe);
@@ -76,7 +64,6 @@ export function createIframeEl(contentEl: HTMLElement, url: string): HTMLIFrameE
 	const iframe = contentEl.createEl('iframe');
 	iframe.src = url;
 	iframe.className = 'resize-vertical'
-	iframe.style.display = 'none'
 
 	return iframe
 }
@@ -95,8 +82,6 @@ export function createShouldUseDefaultWidthCheckbox(iframe: HTMLElement): HTMLDi
 	label.innerText = 'Do you want to use the note default width?'
 
 	checkbox.onclick = (e) => {
-		console.log('click!!!')
-
 		if (checkbox.checked) {
 			iframe.className = 'resize-vertical'
 			iframe.style.width = '100%'
@@ -111,15 +96,4 @@ export function createShouldUseDefaultWidthCheckbox(iframe: HTMLElement): HTMLDi
 	return checkboxContainer;
 
 
-}
-
-export function isIframeCorrectlyLoaded(iframe: HTMLIFrameElement): boolean {
-	var html = null;
-	try {
-		var doc = iframe.contentDocument || iframe.contentWindow.document;
-		html = doc.body.innerHTML;
-	} catch (e) {
-		// Do nothing
-	}
-	return !!html
 }

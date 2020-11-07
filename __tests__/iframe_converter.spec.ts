@@ -6,6 +6,7 @@ describe('updateUrlIfYoutube', () => {
 		["https://www.youtube.com/watch?v=FY7DtKMBxBw", "https://www.youtube.com/embed/FY7DtKMBxBw"],
 		["https://www.youtube.com/watch?v=FY7D_KM-xBw", "https://www.youtube.com/embed/FY7D_KM-xBw"],
 		["https://www.youtube.com/embed/FY7DtKMBxBw", "https://www.youtube.com/embed/FY7DtKMBxBw"],
+		["https://www.youtube.com/watch?v=DLMkT_FHczU&ab_channel=HughJeffreysHughJeffreys", "https://www.youtube.com/embed/DLMkT_FHczU"]
 	]
 	it.each(inputToExpectedOutput)('should correctly parse "%s"', (input: string, expected) => {
 		const output = updateUrlIfYoutube(input);
