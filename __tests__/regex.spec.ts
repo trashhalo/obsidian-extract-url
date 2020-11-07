@@ -1,4 +1,4 @@
-import { getLinkTextWithSurroudingBracketMatches, getLinkTextWithPathMatches, getNotionMatches, removeUUIDs, cleanUUIdsAndIllegalChar, capReferenceLength, matchMdPathWithoutSpace, cleanURIs } from '../regex';
+import { getLinkTextWithSurroudingBracketMatches, getLinkTextWithPathMatches, getNotionMatches, removeUUIDs, cleanUUIdsAndIllegalChar, capReferenceLength, matchMdPathWithoutSpace, notionPathsToReferences } from '../regex';
 
 describe('cleanUri', () => {
 	const inputToExpectedOutput = [
@@ -11,7 +11,7 @@ describe('cleanUri', () => {
 	]
 	it.each(inputToExpectedOutput)('should correctly parse "%s"', (input: string, expected) => {
 
-		const output = cleanURIs(input);
+		const output = notionPathsToReferences(input);
 
 		expect(output).toStrictEqual(expected)
 	})

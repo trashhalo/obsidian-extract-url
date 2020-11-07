@@ -73,7 +73,7 @@ export const sanatizeObsidianRefLink = (content: string) => capReferenceLength(c
 
 export const matchMdPathWithoutSpace = (content: string) => content.match(/([^ ]+\.[a-zA-Z0-9]+)/g);
 
-export function cleanURIs(content: string) {
+export function notionPathsToReferences(content: string) {
     const mdPaths = matchMdPathWithoutSpace(content)
     if (!mdPaths) {
         console.log(mdPaths)
