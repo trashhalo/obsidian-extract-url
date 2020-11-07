@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-sample-plugin",
+  "name": "obsidian-convert-url-to-iframe",
   "version": "0.9.7",
-  "description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+  "description": "Convert an url (ex, youtube) into an iframe (preview)",
   "main": "main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js -w",
