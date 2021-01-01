@@ -67,13 +67,14 @@ export class ConfigureIframeModal extends Modal {
 
 export function createIframeContainerEl(contentEl: HTMLElement, url: string): HTMLElement {
 	const iframeContainer = contentEl.createEl('div');
-	iframeContainer.style.position = 'relative';
 	iframeContainer.style.setProperty('--width', '100%');
+	iframeContainer.style.position = 'relative';
 	iframeContainer.style.width = '100%';
 	iframeContainer.style.paddingBottom = defaultHeightValue;
 	// Overflow cannot be set to "visible" (default) when using resize
 	iframeContainer.style.overflow = 'auto';
 	iframeContainer.style.resize = 'vertical';
+
 	const iframe = iframeContainer.createEl('iframe');
 	iframe.src = url;
 	iframe.style.position = 'absolute';
@@ -94,8 +95,7 @@ export function createShouldUseDefaultWidthCheckbox(iframeContainer: HTMLElement
 
 	const label = checkboxContainer.createEl('label');
 	label.setAttribute('for', name);
-	label.innerText = "Do you want to fix the width to the note's width?";
-	
+	label.innerText = 'Do you want to fix the iframe width to the note width?';
 
 	checkbox.onclick = (e) => {
 		if (checkbox.checked) {
@@ -103,7 +103,7 @@ export function createShouldUseDefaultWidthCheckbox(iframeContainer: HTMLElement
 			iframeContainer.style.width = '100%';
 		} else {
 			iframeContainer.style.resize = 'both';
-			iframeContainer.style.width = 'auto';
+			iframeContainer.style.width = '';
 		}
 	}
 
@@ -116,7 +116,7 @@ export function createHeightInput(iframeContainer: HTMLElement): HTMLDivElement 
 	const heightInputContainer = iframeContainer.createEl('div');
 	const heightInputLabel = heightInputContainer.createEl('label');
 	heightInputLabel.setAttribute('for', heightInputName);
-	heightInputLabel.innerText = 'Initial height (can be resized):';
+	heightInputLabel.innerText = 'Minimum height (can be resized larger):';
 	const heightInput = heightInputContainer.createEl('input');
 	heightInput.type = 'text';
 	heightInput.name = heightInputName;
