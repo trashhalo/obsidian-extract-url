@@ -1,5 +1,8 @@
 import { App, Modal } from 'obsidian';
 
+
+const defaultHeightValue = 'calc(var(--width) * (9/16))';
+
 export class ConfigureIframeModal extends Modal {
 	url: string;
 	sucess: boolean;
@@ -21,8 +24,9 @@ export class ConfigureIframeModal extends Modal {
 		const title = contentEl.createEl('h2');
 		title.innerText = "This is how the iframe is going to look (your can choose the size)";
 
-		const iframe = createIframeEl(contentEl, this.url);
-		const widthCheckbox = createShouldUseDefaultWidthCheckbox(iframe);
+		const iframeContainer = createIframeContainerEl(contentEl, this.url);
+		const widthCheckbox = createShouldUseDefaultWidthCheckbox(iframeContainer);
+		const heightInput = createHeightInput(iframeContainer);
 
 		const okButton = contentEl.createEl('button');
 		okButton.setText('OK');
@@ -30,7 +34,7 @@ export class ConfigureIframeModal extends Modal {
 		okButton.onclick = (e) => {
 			e.preventDefault();
 
-			const generatedIframe = iframe.outerHTML;
+			const generatedIframe = iframeContainer.outerHTML;
 			this.editor.replaceSelection(generatedIframe);
 			this.close();
 		};
@@ -49,7 +53,8 @@ export class ConfigureIframeModal extends Modal {
 
 		container.appendChild(title);
 		container.appendChild(widthCheckbox);
-		container.appendChild(iframe);
+		container.appendChild(heightInput);
+		container.appendChild(iframeContainer);
 		container.appendChild(buttonContainer);
 		contentEl.appendChild(container);
 	}
@@ -60,40 +65,66 @@ export class ConfigureIframeModal extends Modal {
 	}
 }
 
-export function createIframeEl(contentEl: HTMLElement, url: string): HTMLIFrameElement {
-	const iframe = contentEl.createEl('iframe');
+export function createIframeContainerEl(contentEl: HTMLElement, url: string): HTMLElement {
+	const iframeContainer = contentEl.createEl('div');
+	iframeContainer.style.position = 'relative';
+	iframeContainer.style.setProperty('--width', '100%');
+	iframeContainer.style.width = '100%';
+	iframeContainer.style.paddingBottom = defaultHeightValue;
+	// Overflow cannot be set to "visible" (default) when using resize
+	iframeContainer.style.overflow = 'auto';
+	iframeContainer.style.resize = 'vertical';
+	const iframe = iframeContainer.createEl('iframe');
 	iframe.src = url;
-	iframe.className = 'resize-vertical'
+	iframe.style.position = 'absolute';
+	iframe.style.height = '100%';
+	iframe.style.width = '100%';
 
-	return iframe
+	return iframeContainer;
 }
 
 
-export function createShouldUseDefaultWidthCheckbox(iframe: HTMLElement): HTMLDivElement {
+export function createShouldUseDefaultWidthCheckbox(iframeContainer: HTMLElement): HTMLDivElement {
 	const name = "shouldUseDefaultWidth";
-	const checkboxContainer = iframe.createEl('div');
-	const checkbox = iframe.createEl('input');
+	const checkboxContainer = iframeContainer.createEl('div');
+	const checkbox = checkboxContainer.createEl('input');
 	checkbox.type = 'checkbox';
 	checkbox.name = name;
 	checkbox.checked = true;
 
-	const label = iframe.createEl('label');
+	const label = checkboxContainer.createEl('label');
 	label.setAttribute('for', name);
-	label.innerText = 'Do you want to use the note default width?'
+	label.innerText = "Do you want to fix the width to the note's width?";
+	
 
 	checkbox.onclick = (e) => {
 		if (checkbox.checked) {
-			iframe.className = 'resize-vertical'
-			iframe.style.width = '100%'
+			iframeContainer.style.resize = 'vertical';
+			iframeContainer.style.width = '100%';
 		} else {
-			iframe.className = 'resize-both'
+			iframeContainer.style.resize = 'both';
+			iframeContainer.style.width = 'auto';
 		}
 	}
 
-	checkboxContainer.appendChild(checkbox);
-	checkboxContainer.appendChild(label);
-
 	return checkboxContainer;
+}
 
 
+export function createHeightInput(iframeContainer: HTMLElement): HTMLDivElement {
+	const heightInputName = "heightValue";
+	const heightInputContainer = iframeContainer.createEl('div');
+	const heightInputLabel = heightInputContainer.createEl('label');
+	heightInputLabel.setAttribute('for', heightInputName);
+	heightInputLabel.innerText = 'Initial height (can be resized):';
+	const heightInput = heightInputContainer.createEl('input');
+	heightInput.type = 'text';
+	heightInput.name = heightInputName;
+	heightInput.value = defaultHeightValue;
+
+	heightInput.oninput = (e) => {
+		iframeContainer.style.paddingBottom = heightInput.value;
+	}
+
+	return heightInputContainer;
 }
