@@ -9,7 +9,7 @@ export default class FormatNotionPlugin extends Plugin {
 		console.log(this.app);
 		this.addCommand({
 			id: "url-to-iframe",
-			name: "Url to iframe/preview",
+			name: "URL to iframe/preview",
 			callback: () => this.urlToIframe(),
 			hotkeys: [
 				{
@@ -33,7 +33,7 @@ export default class FormatNotionPlugin extends Plugin {
 			modal.open();
 			console.log(modal)
 		} else {
-			new Notice('Select an url to convert to an iframe.');
+			new Notice('Select a URL to convert to an iframe.');
 		}
 	}
 }
