@@ -13,7 +13,7 @@ export default class FormatNotionPlugin extends Plugin {
 			callback: () => this.urlToIframe(),
 			hotkeys: [
 				{
-					modifiers: ["Mod", "Shift"],
+					modifiers: ["Alt"],
 					key: "i",
 				},
 			],
