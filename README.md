@@ -1,9 +1,9 @@
-# Obsidian Plugin: Convert an url (ex, youtube) into an iframe (preview)
-**Transform an youtube url into a youtube preview.**
+# Obsidian Plugin: Convert a URL (e.g. YouTube) into an iframe (preview)
+**Transform a YouTube URL into a YouTube preview.**
 
 ![Demo](images/demo-url-to-preview-2.gif)
 
-Transform a selected url to an embed view if the website allows it. It offers the possibilitiy to resize the preview.
+Transform a selected URL to an embed view if the website allows it. It offers the possibilitiy to resize the preview.
 
 The default hotkey is `cmd + shift + i`.
 
