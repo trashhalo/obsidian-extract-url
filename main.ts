@@ -6,7 +6,7 @@ import { ConfigureIframeModal } from './configure_iframe_modal';
 
 export default class FormatNotionPlugin extends Plugin {
 	async onload() {
-		console.log(this.app);
+		console.log('Loading obsidian-convert-url-to-iframe');
 		this.addCommand({
 			id: "url-to-iframe",
 			name: "URL to iframe/preview",
@@ -31,7 +31,6 @@ export default class FormatNotionPlugin extends Plugin {
 			const url = updateUrlIfYoutube(selectedText)
 			const modal = new ConfigureIframeModal(this.app, url, editor)
 			modal.open();
-			console.log(modal)
 		} else {
 			new Notice('Select a URL to convert to an iframe.');
 		}
