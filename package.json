@@ -1,6 +1,6 @@
 {
   "name": "obsidian-convert-url-to-iframe",
-  "version": "0.9.7",
+  "version": "0.2.0",
   "description": "Convert an url (ex, youtube) into an iframe (preview)",
   "main": "main.js",
   "scripts": {
