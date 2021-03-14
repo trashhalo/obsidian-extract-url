@@ -1,9 +1,9 @@
 {
-  "id": "convert-url-to-iframe",
-  "name": "Convert url to preview (iframe)",
+  "id": "extract-url",
+  "name": "Extract url content",
   "version": "0.1.0",
-  "description": "Convert an url (ex, youtube) into an iframe (preview)",
-  "author": "Hachez Floran",
-  "authorUrl": "https://github.com/FHachez",
-  "isDesktopOnly": true
+  "description": "Extract url converting content into markdown",
+  "author": "Stephen Solka",
+  "authorUrl": "https://github.com/trashhalo",
+  "isDesktopOnly": false
 }
