@@ -17,9 +17,14 @@ export default class ExtractUrlPlugin extends Plugin {
 			name: "Extract",
 			callback: () => this.extractUrl()
 		});
+		this.addCommand({
+			id: "extract-title-from-url",
+			name: "Title Only",
+			callback: () => this.extractUrl(true)
+		});
 	}
 
-	extractUrl() {
+	extractUrl(titleOnly) {
 		let activeLeaf = this.app.workspace.activeLeaf;
 		let editor = activeLeaf.view.sourceMode.cmEditor;
 		let selectedText = editor.somethingSelected()
@@ -31,9 +36,15 @@ export default class ExtractUrlPlugin extends Plugin {
 					new Notice(`Error reading url ${err}`);
 					return
 				}
-				editor.replaceSelection(
-					`# [${article.title}](${selectedText})\n${NodeHtmlMarkdown.translate(article.html)}`
-				);
+				if (titleOnly) {
+					editor.replaceSelection(
+						`[${article.title}](${selectedText})`
+					);
+				} else {
+					editor.replaceSelection(
+						`# [${article.title}](${selectedText})\n${NodeHtmlMarkdown.translate(article.html)}`
+					);
+				}
 			});
 		} else {
 			new Notice('Select a URL to extract.');
