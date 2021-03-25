@@ -4,16 +4,19 @@
   "description": "Extract url converting content into markdown",
   "main": "main.js",
   "scripts": {
-    "build": "microbundle build --target node -f cjs -o main.js --alias readable-stream=stream index.js"
+    "build": "wasm-pack build --target web && rollup --config rollup.config.js",
+    "dev": "wasm-pack build --dev --target web && rollup --config rollup.config.js"
   },
   "keywords": [],
   "author": "",
-  "license": "MIT",
+  "license": "GPL",
   "devDependencies": {
-    "@trashhalo/cheerio": "1.0.0-rc.5",
-    "microbundle": "^0.13.0",
-    "node-fetch": "^2.6.1",
-    "node-html-markdown": "^0.1.5",
-    "underscore": "^1.6.0"
+    "@rollup/plugin-commonjs": "^15.1.0",
+    "@rollup/plugin-node-resolve": "^9.0.0",
+    "rollup": "^2.32.1",
+    "rollup-plugin-base64": "^1.0.1"
+  },
+  "dependencies": {
+    "node-fetch": "2.6.1"
   }
 }
