@@ -4,10 +4,13 @@ use html2md::parse_html;
 use js_sys::{Error, JsString, Promise};
 use readability::extractor::extract;
 use std::rc::Rc;
+use thiserror::Error;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
+use yaml_rust::emitter::{YamlEmitter, EmitError};
+use yaml_rust::scanner::ScanError;
 
 #[wasm_bindgen]
 pub struct ExtractCommand {
@@ -46,7 +49,7 @@ impl ExtractCommand {
         future_to_promise(async move {
             let res = extract_url(&plugin, title_only).await;
             if let Err(e) = res {
-                let msg = format!("error: {}", e.error);
+                let msg = format!("error: {}", e);
                 obsidian::Notice::new(&msg);
                 Err(JsValue::from(Error::new(&msg)))
             } else {
@@ -75,75 +78,129 @@ pub fn onload(plugin: obsidian::Plugin) {
     p.addCommand(JsValue::from(cmd))
 }
 
-struct ExtractError {
-    error: String,
-}
+#[derive(Error, Debug)]
+pub enum ExtractError {
+    #[error("url did not parse")]
+    Parse(#[from] url::ParseError),
 
-impl std::convert::From<url::ParseError> for ExtractError {
-    fn from(err: url::ParseError) -> Self {
-        ExtractError {
-            error: format!("url did not parse {}", err),
-        }
-    }
+    #[error("url not readable")]
+    Read(#[from] readability::error::Error),
+
+    #[error("url had not content")]
+    NoContent,
+
+    #[error("fetch error `{0}`")]
+    Fetch(String),
+
+    #[error("select a url to extract or add link to your frontmatter")]
+    NoUrlFrontmatter(#[from] FrontmatterError),
+
+    #[error("expected view to be MarkdownView but was not")]
+    WrongView,
+
+    #[error("error serializing front matter")]
+    FrontmatterWrite(#[from] EmitError),
 }
 
 impl std::convert::From<JsValue> for ExtractError {
     fn from(err: JsValue) -> Self {
         if let Some(err_val) = err.as_string() {
-            ExtractError {
-                error: format!("fetch error {}", err_val),
-            }
+            ExtractError::Fetch(format!("fetch error {}", err_val))
         } else {
-            ExtractError {
-                error: String::from("fetch error"),
-            }
+            ExtractError::Fetch(String::from("fetch error"))
         }
     }
 }
 
-impl std::convert::From<readability::error::Error> for ExtractError {
-    fn from(err: readability::error::Error) -> Self {
-        ExtractError {
-            error: format!("url not readable {}", err),
-        }
+impl std::convert::From<obsidian::View> for ExtractError {
+    fn from(_from: obsidian::View) -> Self {
+        ExtractError::WrongView
     }
 }
 
 async fn extract_url(plugin: &obsidian::Plugin, title_only: bool) -> Result<(), ExtractError> {
-    if let Some(view) = plugin
+    if let Some(md_view) = plugin
         .app()
         .workspace()
         .get_active_view_of_type(&obsidian::MARKDOWN_VIEW)
     {
+        let view: obsidian::MarkdownView = md_view.dyn_into()?;
         let editor = view.source_mode().cm_editor();
-
-        if let Some(text) = editor.get_selection() {
-            if let Some(url_str) = text.as_string() {
-                let url = Url::parse(&url_str)?;
-                let resp_value = JsFuture::from(fetch::with_url(&url_str)).await?;
-                let resp: fetch::Response = resp_value.dyn_into()?;
-                let body_opt = JsFuture::from(resp.text()?).await?.as_string();
-                if let Some(body) = body_opt {
-                    let ref mut b = body.as_bytes();
-                    let readable = extract(b, &url)?;
-
-                    if title_only {
-                        editor.replace_selection(&format!("[{}]({})", readable.title, url_str))
-                    } else {
-                        editor.replace_selection(&format!(
-                            "# [{}]({})\n{}",
-                            readable.title,
-                            url_str,
-                            parse_html(&readable.content)
-                        ))
-                    }
-                }
-            }
+        let url_str = editor.get_selection();
+        if url_str == "" {
+            let (url_str, content) = extract_link_from_yaml(&view.get_view_data())?;
+            let md = convert_url_to_markdown(title_only, url_str).await?;
+            let mut buf = String::new();
+            let mut emit = YamlEmitter::new(&mut buf);
+            emit.dump(&content)?;
+            editor.set_value(&format!("{}\n---\n{}", buf, md));
+            Ok(())
         } else {
-            return Err(ExtractError {
-                error: String::from("select a url to extract"),
-            });
+            let md = convert_url_to_markdown(title_only, url_str).await?;
+            editor.replace_selection(&md);
+            Ok(())
         }
+    } else {
+        Err(ExtractError::WrongView)
     }
-    Ok(())
+}
+
+async fn convert_url_to_markdown(
+    title_only: bool,
+    url_str: String,
+) -> Result<String, ExtractError> {
+    let url = Url::parse(&url_str)?;
+    let resp_value = JsFuture::from(fetch::with_url(&url_str)).await?;
+    let resp: fetch::Response = resp_value.dyn_into()?;
+    let body = JsFuture::from(resp.text()?)
+        .await?
+        .as_string()
+        .ok_or_else(|| ExtractError::NoContent)?;
+    let ref mut b = body.as_bytes();
+    let readable = extract(b, &url)?;
+
+    Ok(if title_only {
+        format!("[{}]({})", readable.title, url_str)
+    } else {
+        format!(
+            "# [{}]({})\n{}",
+            readable.title,
+            url_str,
+            parse_html(&readable.content)
+        )
+    })
+}
+
+#[derive(Error, Debug)]
+pub enum FrontmatterError {
+    #[error("root document not a hash")]
+    NotHash,
+
+    #[error("key link not available")]
+    NoLink,
+
+    #[error("no frontmatter found in document")]
+    NoYaml,
+
+    #[error("document failed to parse")]
+    NotParseable(#[from] ScanError),
+
+    #[error("link expected to be string type")]
+    LinkNotString,
+}
+
+fn extract_link_from_yaml(view: &str) -> Result<(String, frontmatter::Yaml), FrontmatterError> {
+    let fm = (frontmatter::parse(view)?).ok_or_else(|| FrontmatterError::NoYaml)?;
+    if let frontmatter::Yaml::Hash(hash) = &fm {
+        let link_y = hash
+            .get(&frontmatter::Yaml::String(String::from("link")))
+            .ok_or_else(|| FrontmatterError::NoLink)?;
+        if let frontmatter::Yaml::String(link) = link_y {
+            Ok((link.clone(), fm))
+        } else {
+            Err(FrontmatterError::LinkNotString)
+        }
+    } else {
+        Err(FrontmatterError::NotHash)
+    }
 }
