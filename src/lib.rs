@@ -1,6 +1,7 @@
 mod fetch;
 mod obsidian;
 mod transform;
+mod electron;
 use js_sys::{Error, JsString, Promise};
 use std::rc::Rc;
 use thiserror::Error;
@@ -14,6 +15,7 @@ use yaml_rust::scanner::ScanError;
 #[wasm_bindgen]
 pub struct ExtractCommand {
     title_only: bool,
+    use_clipboard: bool,
     id: JsString,
     name: JsString,
     plugin: Rc<obsidian::Plugin>,
@@ -45,8 +47,9 @@ impl ExtractCommand {
     pub fn callback(&self) -> Promise {
         let plugin = self.plugin.clone();
         let title_only = self.title_only;
+        let use_clipboard = self.use_clipboard;
         future_to_promise(async move {
-            let res = extract_url(&plugin, title_only).await;
+            let res = extract_url(&plugin, title_only, use_clipboard).await;
             if let Err(e) = res {
                 let msg = format!("error: {}", e);
                 obsidian::Notice::new(&msg);
@@ -61,20 +64,30 @@ impl ExtractCommand {
 #[wasm_bindgen]
 pub fn onload(plugin: obsidian::Plugin) {
     let p = Rc::new(plugin);
-    let cmd = ExtractCommand {
+    let cmd1 = ExtractCommand {
         id: JsString::from("extract-url"),
         name: JsString::from("Extract"),
         plugin: p.clone(),
         title_only: false,
+        use_clipboard: false,
     };
-    p.addCommand(JsValue::from(cmd));
-    let cmd = ExtractCommand {
+    p.addCommand(JsValue::from(cmd1));
+    let cmd2 = ExtractCommand {
         id: JsString::from("extract-title-from-url"),
         name: JsString::from("Title Only"),
         plugin: p.clone(),
         title_only: true,
+        use_clipboard: false,
     };
-    p.addCommand(JsValue::from(cmd))
+    p.addCommand(JsValue::from(cmd2));
+    let cmd3 = ExtractCommand {
+        id: JsString::from("extract-url"),
+        name: JsString::from("Import From Clipboard"),
+        plugin: p.clone(),
+        title_only: false,
+        use_clipboard: true,
+    };
+    p.addCommand(JsValue::from(cmd3))
 }
 
 #[derive(Error, Debug)]
@@ -117,7 +130,7 @@ impl std::convert::From<obsidian::View> for ExtractError {
     }
 }
 
-async fn extract_url(plugin: &obsidian::Plugin, title_only: bool) -> Result<(), ExtractError> {
+async fn extract_url(plugin: &obsidian::Plugin, title_only: bool, use_clipboard: bool) -> Result<(), ExtractError> {
     if let Some(md_view) = plugin
         .app()
         .workspace()
@@ -125,7 +138,11 @@ async fn extract_url(plugin: &obsidian::Plugin, title_only: bool) -> Result<(), 
     {
         let view: obsidian::MarkdownView = md_view.dyn_into()?;
         let editor = view.source_mode().cm_editor();
-        let url_str = editor.get_selection();
+        let url_str = if use_clipboard {
+            electron::clipboard_read_text()
+        } else {
+            editor.get_selection()
+        };
         if url_str == "" {
             let (url_str, content) = extract_link_from_yaml(&view.get_view_data())?;
             let md = convert_url_to_markdown(title_only, url_str).await?;
