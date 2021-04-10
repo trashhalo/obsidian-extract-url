@@ -11,4 +11,7 @@ extern "C" {
 
     #[wasm_bindgen(catch, method)]
     pub fn text(this: &Response) -> Result<Promise, JsValue>;
+
+    #[wasm_bindgen(catch, method)]
+    pub fn json(this: &Response) -> Result<Promise, JsValue>;
 }

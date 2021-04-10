@@ -1,15 +1,14 @@
 mod fetch;
 mod obsidian;
-use html2md::parse_html;
+mod transform;
 use js_sys::{Error, JsString, Promise};
-use readability::extractor::extract;
 use std::rc::Rc;
 use thiserror::Error;
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
-use yaml_rust::emitter::{YamlEmitter, EmitError};
+use yaml_rust::emitter::{EmitError, YamlEmitter};
 use yaml_rust::scanner::ScanError;
 
 #[wasm_bindgen]
@@ -80,11 +79,8 @@ pub fn onload(plugin: obsidian::Plugin) {
 
 #[derive(Error, Debug)]
 pub enum ExtractError {
-    #[error("url did not parse")]
+    #[error("url did not parse. {0}")]
     Parse(#[from] url::ParseError),
-
-    #[error("url not readable")]
-    Read(#[from] readability::error::Error),
 
     #[error("url had not content")]
     NoContent,
@@ -92,14 +88,17 @@ pub enum ExtractError {
     #[error("fetch error `{0}`")]
     Fetch(String),
 
-    #[error("select a url to extract or add link to your frontmatter")]
+    #[error("select a url to extract or add link to your frontmatter. {0}")]
     NoUrlFrontmatter(#[from] FrontmatterError),
 
     #[error("expected view to be MarkdownView but was not")]
     WrongView,
 
-    #[error("error serializing front matter")]
+    #[error("error serializing front matter. {0}")]
     FrontmatterWrite(#[from] EmitError),
+
+    #[error("error transforming content. {0}")]
+    Transform(#[from] transform::TransformError),
 }
 
 impl std::convert::From<JsValue> for ExtractError {
@@ -149,26 +148,14 @@ async fn convert_url_to_markdown(
     title_only: bool,
     url_str: String,
 ) -> Result<String, ExtractError> {
-    let url = Url::parse(&url_str)?;
+    let ref url = Url::parse(&url_str)?;
     let resp_value = JsFuture::from(fetch::with_url(&url_str)).await?;
     let resp: fetch::Response = resp_value.dyn_into()?;
     let body = JsFuture::from(resp.text()?)
         .await?
         .as_string()
         .ok_or_else(|| ExtractError::NoContent)?;
-    let ref mut b = body.as_bytes();
-    let readable = extract(b, &url)?;
-
-    Ok(if title_only {
-        format!("[{}]({})", readable.title, url_str)
-    } else {
-        format!(
-            "# [{}]({})\n{}",
-            readable.title,
-            url_str,
-            parse_html(&readable.content)
-        )
-    })
+    Ok(transform::transform_url(url, title_only, body).await?)
 }
 
 #[derive(Error, Debug)]
