@@ -81,7 +81,7 @@ pub fn onload(plugin: obsidian::Plugin) {
     };
     p.addCommand(JsValue::from(cmd2));
     let cmd3 = ExtractCommand {
-        id: JsString::from("extract-url"),
+        id: JsString::from("import-url"),
         name: JsString::from("Import From Clipboard"),
         plugin: p.clone(),
         title_only: false,
