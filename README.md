@@ -24,3 +24,6 @@ everything below the --- will be replaced when calling extract
 - __Extract__: Replace url or document with readable markdown extracted from the sites html content
 - __Title Only__: Replace url or document with a markdown anchor with the title extracted from the page content
 - __Import from Clipboard__: Extract content from url that is found in your clipboard and dump it at your cursor
+
+# Youtube
+If your system has `youtube-dl` installed extra details like channel name and description will be extracted for youtube urls.
