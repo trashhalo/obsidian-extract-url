@@ -1,3 +1,4 @@
+mod metadata;
 use crate::fetch;
 use html2md::parse_html;
 use serde::Deserialize;
@@ -23,6 +24,9 @@ pub enum OembedError {
 
     #[error("Error serializing oembed data. {0}")]
     Serde(#[from] serde_json::error::Error),
+
+    #[error("error getting youtube metadata")]
+    Metadata(#[from] metadata::MetadataError),
 }
 
 impl std::convert::From<wasm_bindgen::JsValue> for OembedError {
@@ -42,6 +46,7 @@ pub struct OembedData {
 }
 
 pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedError> {
+    let m = metadata::metadata(url).await?;
     let mut href = Url::parse("https://noembed.com/embed")?;
     href.query_pairs_mut().append_pair("url", &url.to_string());
     let resp_value = JsFuture::from(fetch::with_url(&href.to_string())).await?;
@@ -52,7 +57,13 @@ pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedEr
         None => Err(OembedError::NoHtml),
         Some(html) => {
             if html.contains("iframe") {
-                Ok(format!("# [{}]({})\n{}", data.title, url, html))
+                match m {
+                    None => Ok(format!("# [{}]({})\n{}", data.title, url, html)),
+                    Some(video) => Ok(format!(
+                        "# [{}]({})\n{}\n\n[{}]({})\n{}",
+                        data.title, url, html, video.channel, video.uploader_url, video.description
+                    )),
+                }
             } else {
                 Ok(format!(
                     "# [{}]({})\n{}",

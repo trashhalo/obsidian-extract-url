@@ -17,6 +17,7 @@
     "rollup-plugin-base64": "^1.0.1"
   },
   "dependencies": {
+    "hasbin": "^1.2.3",
     "node-fetch": "2.6.1"
   }
 }
