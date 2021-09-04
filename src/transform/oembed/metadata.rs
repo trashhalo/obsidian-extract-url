@@ -1,3 +1,4 @@
+use crate::shim::{has_bin, node_exec};
 use futures::channel::oneshot;
 use js_sys::Error;
 use serde::Deserialize;
@@ -5,18 +6,7 @@ use serde_json;
 use thiserror::Error;
 use url::{Host, Url};
 use wasm_bindgen::prelude::*;
-
-#[wasm_bindgen(module = "hasbin")]
-extern "C" {
-    #[wasm_bindgen(js_name=sync)]
-    pub fn has_bin(app: &str) -> bool;
-}
-
-#[wasm_bindgen(module = "child_process")]
-extern "C" {
-    #[wasm_bindgen(js_name=exec)]
-    pub fn node_exec(cmd: &str, f: &Closure<dyn FnMut(Option<Error>, String, String)>) -> JsValue;
-}
+use web_sys::console;
 
 #[derive(Error, Debug)]
 pub enum ExecError {
@@ -66,6 +56,7 @@ pub async fn metadata(url: &Url) -> Result<Option<VideoMetadata>, MetadataError>
     } else if !has_bin("youtube-dl") {
         return Ok(None);
     }
+    console::log_1(&"detected youtube-dl".into());
     match exec(&format!("youtube-dl -j {}", url)).await? {
         None => Ok(None),
         Some(s) => {

@@ -1,7 +1,7 @@
-mod fetch;
 mod obsidian;
+mod request;
+mod shim;
 mod transform;
-mod electron;
 use js_sys::{Error, JsString, Promise};
 use std::rc::Rc;
 use thiserror::Error;
@@ -9,6 +9,7 @@ use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
+use web_sys::console;
 use yaml_rust::emitter::{EmitError, YamlEmitter};
 use yaml_rust::scanner::ScanError;
 
@@ -80,14 +81,17 @@ pub fn onload(plugin: obsidian::Plugin) {
         use_clipboard: false,
     };
     p.addCommand(JsValue::from(cmd2));
-    let cmd3 = ExtractCommand {
-        id: JsString::from("import-url"),
-        name: JsString::from("Import From Clipboard"),
-        plugin: p.clone(),
-        title_only: false,
-        use_clipboard: true,
-    };
-    p.addCommand(JsValue::from(cmd3))
+
+    if *obsidian::DESKTOP {
+        let cmd3 = ExtractCommand {
+            id: JsString::from("import-url"),
+            name: JsString::from("Import From Clipboard"),
+            plugin: p.clone(),
+            title_only: false,
+            use_clipboard: true,
+        };
+        p.addCommand(JsValue::from(cmd3))
+    }
 }
 
 #[derive(Error, Debug)]
@@ -130,7 +134,11 @@ impl std::convert::From<obsidian::View> for ExtractError {
     }
 }
 
-async fn extract_url(plugin: &obsidian::Plugin, title_only: bool, use_clipboard: bool) -> Result<(), ExtractError> {
+async fn extract_url(
+    plugin: &obsidian::Plugin,
+    title_only: bool,
+    use_clipboard: bool,
+) -> Result<(), ExtractError> {
     if let Some(md_view) = plugin
         .app()
         .workspace()
@@ -139,7 +147,7 @@ async fn extract_url(plugin: &obsidian::Plugin, title_only: bool, use_clipboard:
         let view: obsidian::MarkdownView = md_view.dyn_into()?;
         let editor = view.source_mode().cm_editor();
         let url_str = if use_clipboard {
-            electron::clipboard_read_text()
+            shim::clipboard_read_text()
         } else {
             editor.get_selection()
         };
@@ -165,13 +173,17 @@ async fn convert_url_to_markdown(
     title_only: bool,
     url_str: String,
 ) -> Result<String, ExtractError> {
-    let ref url = Url::parse(&url_str)?;
-    let resp_value = JsFuture::from(fetch::with_url(&url_str)).await?;
-    let resp: fetch::Response = resp_value.dyn_into()?;
-    let body = JsFuture::from(resp.text()?)
+    let params = request::request_params(&url_str);
+    let body: String = JsFuture::from(request::request(params)?)
         .await?
         .as_string()
         .ok_or_else(|| ExtractError::NoContent)?;
+
+    if cfg!(debug_assertions) {
+        console::log_2(&"body".into(), &JsValue::from_str(&body));
+    }
+
+    let ref url = Url::parse(&url_str)?;
     Ok(transform::transform_url(url, title_only, body).await?)
 }
 

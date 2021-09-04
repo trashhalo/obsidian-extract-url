@@ -1,12 +1,13 @@
 mod metadata;
-use crate::fetch;
+use crate::request;
 use html2md::parse_html;
 use serde::Deserialize;
 use serde_json;
 use thiserror::Error;
 use url::Url;
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
+use web_sys::console;
 
 #[derive(Error, Debug)]
 pub enum OembedError {
@@ -25,7 +26,7 @@ pub enum OembedError {
     #[error("Error serializing oembed data. {0}")]
     Serde(#[from] serde_json::error::Error),
 
-    #[error("error getting youtube metadata")]
+    #[error("Error getting youtube metadata")]
     Metadata(#[from] metadata::MetadataError),
 }
 
@@ -46,13 +47,28 @@ pub struct OembedData {
 }
 
 pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedError> {
-    let m = metadata::metadata(url).await?;
+    let m = match metadata::metadata(url).await {
+        Err(e) => {
+            console::log_2(&"metadata error".into(), &format!("{:?}", e).into());
+            None
+        }
+        Ok(o) => o,
+    };
+
     let mut href = Url::parse("https://noembed.com/embed")?;
     href.query_pairs_mut().append_pair("url", &url.to_string());
-    let resp_value = JsFuture::from(fetch::with_url(&href.to_string())).await?;
-    let resp: fetch::Response = resp_value.dyn_into()?;
-    let body = JsFuture::from(resp.json()?).await?;
-    let data: OembedData = body.into_serde()?;
+    let params = request::request_params(href.as_str());
+    let body = JsFuture::from(request::request(params)?)
+        .await?
+        .as_string()
+        .ok_or_else(|| OembedError::Fetch("Value not a string".into()))?;
+
+    if cfg!(debug_assertions) {
+        let dbody = body.clone();
+        console::log_2(&"oembed".into(), &dbody.into());
+    }
+
+    let data: OembedData = serde_json::from_str(&body)?;
     match data.html {
         None => Err(OembedError::NoHtml),
         Some(html) => {
@@ -79,9 +95,8 @@ pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedEr
 pub async fn oembed_title(_body: String, url: &Url) -> Result<String, OembedError> {
     let mut href = Url::parse("https://noembed.com/embed")?;
     href.query_pairs_mut().append_pair("url", &url.to_string());
-    let resp_value = JsFuture::from(fetch::with_url(&href.to_string())).await?;
-    let resp: fetch::Response = resp_value.dyn_into()?;
-    let body = JsFuture::from(resp.json()?).await?;
+    let params = request::request_params(url.as_str());
+    let body = JsFuture::from(request::request(params)?).await?;
     let data: OembedData = body.into_serde()?;
     Ok(format!("[{}]({})", data.title, url))
 }

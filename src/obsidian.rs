@@ -17,6 +17,9 @@ extern "C" {
     #[wasm_bindgen(js_name=MarkdownView)]
     pub static MARKDOWN_VIEW: Function;
 
+    #[wasm_bindgen(js_namespace=Platform, js_name=isDesktop)]
+    pub static DESKTOP: bool;
+
     #[wasm_bindgen(method)]
     pub fn addCommand(this: &Plugin, command: JsValue);
 
