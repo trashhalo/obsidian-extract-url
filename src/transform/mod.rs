@@ -3,6 +3,7 @@ use html2md::parse_html;
 use readability::extractor::extract;
 use thiserror::Error;
 use url::Url;
+use web_sys::console;
 
 #[derive(Error, Debug)]
 pub enum TransformError {
@@ -40,12 +41,18 @@ pub async fn transform_url(
     if title_only {
         match oembed::oembed_title(body.clone(), url).await {
             Ok(o) => Ok(o),
-            Err(_) => readable_title(body.clone(), url).await,
+            Err(e) => {
+                console::log_2(&"oembed error".into(), &format!("{:?}", e).into());
+                readable_title(body.clone(), url).await
+            }
         }
     } else {
         match oembed::oembed_content(body.clone(), url).await {
             Ok(o) => Ok(o),
-            Err(_) => readable_content(body.clone(), url).await,
+            Err(e) => {
+                console::log_2(&"oembed error".into(), &format!("{:?}", e).into());
+                readable_content(body.clone(), url).await
+            }
         }
     }
 }

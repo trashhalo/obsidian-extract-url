@@ -1,9 +1,10 @@
 {
   "id": "extract-url",
   "name": "Extract url content",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Extract url converting content into markdown",
   "author": "Stephen Solka",
   "authorUrl": "https://github.com/trashhalo",
-  "isDesktopOnly": true
+  "isDesktopOnly": false,
+  "minAppVersion": "0.12.15"
 }

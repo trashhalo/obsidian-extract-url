@@ -4,20 +4,18 @@
   "description": "Extract url converting content into markdown",
   "main": "main.js",
   "scripts": {
-    "build": "wasm-pack build --target web && rollup --config rollup.config.js",
-    "dev": "wasm-pack build --dev --target web && rollup --config rollup.config.js"
+    "esbuild-dev": "esbuild index.js --platform=node --external:obsidian --external:electron --loader:.wasm=base64 --bundle --outfile=main.js",
+    "esbuild-release": "esbuild index.js --platform=node --external:obsidian --external:electron --loader:.wasm=base64 --bundle --outfile=main.js --minify",
+    "build": "wasm-pack build --target web && yarn esbuild-release",
+    "dev": "wasm-pack build --dev --target web && yarn esbuild-dev"
   },
   "keywords": [],
   "author": "",
   "license": "GPL",
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^15.1.0",
-    "@rollup/plugin-node-resolve": "^9.0.0",
-    "rollup": "^2.32.1",
-    "rollup-plugin-base64": "^1.0.1"
+    "esbuild": "^0.12.25"
   },
   "dependencies": {
-    "hasbin": "^1.2.3",
-    "node-fetch": "2.6.1"
+    "hasbin": "^1.2.3"
   }
 }
