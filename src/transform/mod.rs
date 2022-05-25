@@ -1,4 +1,5 @@
 mod oembed;
+use crate::extract::Markdown;
 use html2md::parse_html;
 use readability::extractor::extract;
 use thiserror::Error;
@@ -14,30 +15,36 @@ pub enum TransformError {
     Oembed(#[from] oembed::OembedError),
 }
 
-pub async fn readable_content(body: String, url: &Url) -> Result<String, TransformError> {
+pub async fn readable_content(body: String, url: &Url) -> Result<Markdown, TransformError> {
     let ref mut b = body.as_bytes();
     let readable = extract(b, url)?;
 
-    Ok(format!(
-        "# [{}]({})\n{}",
-        readable.title,
-        url,
-        parse_html(&readable.content)
-    ))
+    Ok(Markdown {
+        title: readable.title.clone(),
+        content: format!(
+            "# [{}]({})\n{}",
+            readable.title,
+            url,
+            parse_html(&readable.content)
+        ),
+    })
 }
 
-pub async fn readable_title(body: String, url: &Url) -> Result<String, TransformError> {
+pub async fn readable_title(body: String, url: &Url) -> Result<Markdown, TransformError> {
     let ref mut b = body.as_bytes();
     let readable = extract(b, url)?;
 
-    Ok(format!("[{}]({})", readable.title, url))
+    Ok(Markdown {
+        title: readable.title.clone(),
+        content: format!("[{}]({})", readable.title, url),
+    })
 }
 
 pub async fn transform_url(
     url: &Url,
     title_only: bool,
     body: String,
-) -> Result<String, TransformError> {
+) -> Result<Markdown, TransformError> {
     if title_only {
         match oembed::oembed_title(body.clone(), url).await {
             Ok(o) => Ok(o),
