@@ -1,222 +1,68 @@
+mod archive;
+mod extract;
 mod obsidian;
 mod request;
+mod settings;
 mod shim;
 mod transform;
-use js_sys::{Error, JsString, Promise};
-use std::rc::Rc;
+use crate::settings::*;
+use js_sys::{JsString, Object, Reflect};
 use thiserror::Error;
-use url::Url;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
-use wasm_bindgen_futures::{future_to_promise, JsFuture};
-use web_sys::console;
-use yaml_rust::emitter::{EmitError, YamlEmitter};
-use yaml_rust::scanner::ScanError;
 
 #[wasm_bindgen]
-pub struct ExtractCommand {
-    title_only: bool,
-    use_clipboard: bool,
-    id: JsString,
-    name: JsString,
-    plugin: Rc<obsidian::Plugin>,
-}
-
-#[wasm_bindgen]
-impl ExtractCommand {
-    #[wasm_bindgen(getter)]
-    pub fn id(&self) -> JsString {
-        self.id.clone()
-    }
-
-    #[wasm_bindgen(setter)]
-    pub fn set_id(&mut self, id: &str) {
-        self.id = JsString::from(id)
-    }
-
-    #[wasm_bindgen(getter)]
-    pub fn name(&self) -> JsString {
-        self.name.clone()
-    }
-
-    #[wasm_bindgen(setter)]
-    pub fn set_name(&mut self, name: &str) {
-        self.name = JsString::from(name)
-    }
-
-    #[wasm_bindgen(method)]
-    pub fn callback(&self) -> Promise {
-        let plugin = self.plugin.clone();
-        let title_only = self.title_only;
-        let use_clipboard = self.use_clipboard;
-        future_to_promise(async move {
-            let res = extract_url(&plugin, title_only, use_clipboard).await;
-            if let Err(e) = res {
-                let msg = format!("error: {}", e);
-                obsidian::Notice::new(&msg);
-                Err(JsValue::from(Error::new(&msg)))
-            } else {
-                Ok(JsValue::undefined())
-            }
-        })
-    }
-}
-
-#[wasm_bindgen]
-pub fn onload(plugin: obsidian::Plugin) {
-    let p = Rc::new(plugin);
-    let cmd1 = ExtractCommand {
-        id: JsString::from("extract-url"),
-        name: JsString::from("Extract"),
-        plugin: p.clone(),
-        title_only: false,
-        use_clipboard: false,
-    };
-    p.addCommand(JsValue::from(cmd1));
-    let cmd2 = ExtractCommand {
-        id: JsString::from("extract-title-from-url"),
-        name: JsString::from("Title Only"),
-        plugin: p.clone(),
-        title_only: true,
-        use_clipboard: false,
-    };
-    p.addCommand(JsValue::from(cmd2));
-
+pub async fn onload(plugin: obsidian::Plugin) {
+    plugin.addCommand(JsValue::from(extract::command_extract_url()));
+    plugin.addCommand(JsValue::from(extract::command_extract_url_from_url()));
     if *obsidian::DESKTOP {
-        let cmd3 = ExtractCommand {
-            id: JsString::from("import-url"),
-            name: JsString::from("Import From Clipboard"),
-            plugin: p.clone(),
-            title_only: false,
-            use_clipboard: true,
-        };
-        p.addCommand(JsValue::from(cmd3))
+        plugin.addCommand(JsValue::from(extract::command_import_url()));
+    }
+    plugin.addCommand(JsValue::from(archive::command_archive()));
+}
+
+#[wasm_bindgen]
+pub async fn settings(settings_tab: obsidian::RustSettingsTab) {
+    let container = settings_tab.container_el();
+    container.empty();
+    if let Err(e) = settings_internal(&container).await {
+        let opts = Object::new();
+        Reflect::set(
+            &opts,
+            &JsString::from("text"),
+            &JsString::from(format!("{:?}", e)),
+        )
+        .unwrap();
+        container.create_el("p", opts.into());
     }
 }
 
 #[derive(Error, Debug)]
-pub enum ExtractError {
-    #[error("url did not parse. {0}")]
-    Parse(#[from] url::ParseError),
-
-    #[error("url had not content")]
-    NoContent,
-
-    #[error("fetch error `{0}`")]
-    Fetch(String),
-
-    #[error("select a url to extract or add link to your frontmatter. {0}")]
-    NoUrlFrontmatter(#[from] FrontmatterError),
-
-    #[error("expected view to be MarkdownView but was not")]
-    WrongView,
-
-    #[error("error serializing front matter. {0}")]
-    FrontmatterWrite(#[from] EmitError),
-
-    #[error("error transforming content. {0}")]
-    Transform(#[from] transform::TransformError),
+pub enum SettingPageError {
+    #[error("error loading settings. {0}")]
+    Transform(#[from] SettingsError),
 }
 
-impl std::convert::From<JsValue> for ExtractError {
-    fn from(err: JsValue) -> Self {
-        if let Some(err_val) = err.as_string() {
-            ExtractError::Fetch(format!("fetch error {}", err_val))
-        } else {
-            ExtractError::Fetch(String::from("fetch error"))
-        }
-    }
-}
-
-impl std::convert::From<obsidian::View> for ExtractError {
-    fn from(_from: obsidian::View) -> Self {
-        ExtractError::WrongView
-    }
-}
-
-async fn extract_url(
-    plugin: &obsidian::Plugin,
-    title_only: bool,
-    use_clipboard: bool,
-) -> Result<(), ExtractError> {
-    if let Some(md_view) = plugin
-        .app()
-        .workspace()
-        .get_active_view_of_type(&obsidian::MARKDOWN_VIEW)
-    {
-        let view: obsidian::MarkdownView = md_view.dyn_into()?;
-        let editor = view.source_mode().cm_editor();
-        let url_str = if use_clipboard {
-            shim::clipboard_read_text()
-        } else {
-            editor.get_selection()
-        };
-        if url_str == "" {
-            let (url_str, content) = extract_link_from_yaml(&view.get_view_data())?;
-            let md = convert_url_to_markdown(title_only, url_str).await?;
-            let mut buf = String::new();
-            let mut emit = YamlEmitter::new(&mut buf);
-            emit.dump(&content)?;
-            editor.set_value(&format!("{}\n---\n{}", buf, md));
-            Ok(())
-        } else {
-            let md = convert_url_to_markdown(title_only, url_str).await?;
-            editor.replace_selection(&md);
-            Ok(())
-        }
-    } else {
-        Err(ExtractError::WrongView)
-    }
-}
-
-async fn convert_url_to_markdown(
-    title_only: bool,
-    url_str: String,
-) -> Result<String, ExtractError> {
-    let params = request::request_params(&url_str);
-    let body: String = JsFuture::from(request::request(params)?)
-        .await?
-        .as_string()
-        .ok_or_else(|| ExtractError::NoContent)?;
-
-    if cfg!(debug_assertions) {
-        console::log_2(&"body".into(), &JsValue::from_str(&body));
-    }
-
-    let ref url = Url::parse(&url_str)?;
-    Ok(transform::transform_url(url, title_only, body).await?)
-}
-
-#[derive(Error, Debug)]
-pub enum FrontmatterError {
-    #[error("root document not a hash")]
-    NotHash,
-
-    #[error("key link not available")]
-    NoLink,
-
-    #[error("no frontmatter found in document")]
-    NoYaml,
-
-    #[error("document failed to parse")]
-    NotParseable(#[from] ScanError),
-
-    #[error("link expected to be string type")]
-    LinkNotString,
-}
-
-fn extract_link_from_yaml(view: &str) -> Result<(String, frontmatter::Yaml), FrontmatterError> {
-    let fm = (frontmatter::parse(view)?).ok_or_else(|| FrontmatterError::NoYaml)?;
-    if let frontmatter::Yaml::Hash(hash) = &fm {
-        let link_y = hash
-            .get(&frontmatter::Yaml::String(String::from("link")))
-            .ok_or_else(|| FrontmatterError::NoLink)?;
-        if let frontmatter::Yaml::String(link) = link_y {
-            Ok((link.clone(), fm))
-        } else {
-            Err(FrontmatterError::LinkNotString)
-        }
-    } else {
-        Err(FrontmatterError::NotHash)
-    }
+pub async fn settings_internal<'a>(container: &obsidian::Element) -> Result<(), SettingPageError> {
+    let plugin = obsidian::plugin();
+    let settings = crate::settings::load_settings(&plugin).await?;
+    let setting = obsidian::Setting::new(container);
+    setting.set_name("archive path");
+    setting.set_desc("location to store scraped content");
+    setting.add_text(&|text| {
+        text.set_placeholder("archive");
+        text.set_value(&settings.archive_path());
+        let f = Closure::wrap(Box::new(move |value| {
+            wasm_bindgen_futures::spawn_local(async move {
+                let plugin = obsidian::plugin();
+                let mut settings = crate::settings::load_settings(&plugin).await.unwrap();
+                settings.archive_path = Some(value);
+                if let Err(e) = save_settings(&plugin, settings).await {
+                    let msg = format!("error: {}", e);
+                    obsidian::Notice::new(&msg);
+                }
+            });
+        }) as Box<dyn Fn(String)>);
+        text.on_change(f.into_js_value());
+    });
+    Ok(())
 }

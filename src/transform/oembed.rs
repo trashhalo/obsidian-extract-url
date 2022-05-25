@@ -1,4 +1,5 @@
 mod metadata;
+use crate::extract::Markdown;
 use crate::request;
 use html2md::parse_html;
 use serde::Deserialize;
@@ -11,9 +12,6 @@ use web_sys::console;
 
 #[derive(Error, Debug)]
 pub enum OembedError {
-    #[error("Url missing oembed info")]
-    NoLink,
-
     #[error("Url missing oembed info")]
     NoHtml,
 
@@ -46,7 +44,7 @@ pub struct OembedData {
     pub title: String,
 }
 
-pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedError> {
+pub async fn oembed_content(_body: String, url: &Url) -> Result<Markdown, OembedError> {
     let m = match metadata::metadata(url).await {
         Err(e) => {
             console::log_2(&"metadata error".into(), &format!("{:?}", e).into());
@@ -74,29 +72,39 @@ pub async fn oembed_content(_body: String, url: &Url) -> Result<String, OembedEr
         Some(html) => {
             if html.contains("iframe") {
                 match m {
-                    None => Ok(format!("# [{}]({})\n{}", data.title, url, html)),
-                    Some(video) => Ok(format!(
+                    None => Ok(Markdown{
+                        title: data.title.clone(),
+                        content: format!("# [{}]({})\n{}", data.title, url, html)
+                    }),
+                    Some(video) => Ok(Markdown{
+                        title: data.title.clone(),
+                        content: format!(
                         "# [{}]({})\n{}\n\n[{}]({})\n{}",
                         data.title, url, html, video.channel, video.uploader_url, video.description
-                    )),
+                    )}),
                 }
             } else {
-                Ok(format!(
+                Ok(Markdown {
+                    title: data.title.clone(),
+                    content: format!(
                     "# [{}]({})\n{}",
                     data.title,
                     url,
                     parse_html(&html)
-                ))
+                )})
             }
         }
     }
 }
 
-pub async fn oembed_title(_body: String, url: &Url) -> Result<String, OembedError> {
+pub async fn oembed_title(_body: String, url: &Url) -> Result<Markdown, OembedError> {
     let mut href = Url::parse("https://noembed.com/embed")?;
     href.query_pairs_mut().append_pair("url", &url.to_string());
     let params = request::request_params(url.as_str());
     let body = JsFuture::from(request::request(params)?).await?;
     let data: OembedData = body.into_serde()?;
-    Ok(format!("[{}]({})", data.title, url))
+    Ok(Markdown{
+        title: data.title.clone(),
+        content: format!("[{}]({})", data.title, url)
+    })
 }
