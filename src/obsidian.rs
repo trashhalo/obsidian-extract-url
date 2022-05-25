@@ -90,7 +90,10 @@ extern "C" {
     pub fn create(this: &Vault, path: &str, data: &str) -> Result<Promise, JsValue>;
 
     #[wasm_bindgen(method, catch, js_name=getAbstractFileByPath)]
-    pub fn get_abstract_file_by_path(this: &Vault, path: &str) -> Result<Option<TAbstractFile>, JsValue>;
+    pub fn get_abstract_file_by_path(
+        this: &Vault,
+        path: &str,
+    ) -> Result<Option<TAbstractFile>, JsValue>;
 
     #[wasm_bindgen(method, js_name=generateMarkdownLink)]
     pub fn generate_markdown_link(
@@ -135,7 +138,7 @@ extern "C" {
     pub fn set_value(this: &TextComponent, value: &str) -> TextComponent;
 
     #[wasm_bindgen(method, js_name=onChange)]
-    pub fn on_change(this: &TextComponent, cb: &dyn Fn(String)) -> TextComponent;
+    pub fn on_change(this: &TextComponent, cb: JsValue) -> TextComponent;
 }
 
 #[wasm_bindgen(

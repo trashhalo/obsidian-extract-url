@@ -51,7 +51,7 @@ pub async fn settings_internal<'a>(container: &obsidian::Element) -> Result<(), 
     setting.add_text(&|text| {
         text.set_placeholder("archive");
         text.set_value(&settings.archive_path());
-        text.on_change(&|value| {
+        let f = Closure::wrap(Box::new(move |value| {
             wasm_bindgen_futures::spawn_local(async move {
                 let plugin = obsidian::plugin();
                 let mut settings = crate::settings::load_settings(&plugin).await.unwrap();
@@ -61,7 +61,8 @@ pub async fn settings_internal<'a>(container: &obsidian::Element) -> Result<(), 
                     obsidian::Notice::new(&msg);
                 }
             });
-        });
+        }) as Box<dyn Fn(String)>);
+        text.on_change(f.into_js_value());
     });
     Ok(())
 }
