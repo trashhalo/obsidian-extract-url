@@ -30,7 +30,7 @@ everything below the --- will be replaced when calling extract
 
 - **Extract**: Replace url or document with readable markdown extracted from the sites html content
 - **Title Only**: Replace url or document with a markdown anchor with the title extracted from the page content
-- **Import from Clipboard**: Extract content from url that is found in your clipboard and dump it at your cursor. Desktop only
+- **Import from Clipboard**: Extract content from url that is found in your clipboard and dump it at your cursor.
 
 # Youtube
 

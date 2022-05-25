@@ -6,8 +6,8 @@
   "scripts": {
     "esbuild-dev": "esbuild index.js --platform=node --external:obsidian --external:electron --loader:.wasm=base64 --bundle --outfile=main.js",
     "esbuild-release": "esbuild index.js --platform=node --external:obsidian --external:electron --loader:.wasm=base64 --bundle --outfile=main.js --minify",
-    "build": "wasm-pack build --target web && yarn esbuild-release",
-    "dev": "wasm-pack build --dev --target web && yarn esbuild-dev"
+    "build": "export RUSTFLAGS=--cfg=web_sys_unstable_apis && wasm-pack build --target web && yarn esbuild-release",
+    "dev": "export RUSTFLAGS=--cfg=web_sys_unstable_apis && wasm-pack build --dev --target web && yarn esbuild-dev"
   },
   "keywords": [],
   "author": "",

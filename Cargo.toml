@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["Stephen Solka <solka@angel.co>"]
 edition = "2018"
 
+[build]
+rustflags = ["--cfg=web_sys_unstable_apis"]
+
+[target.wasm32-unknown-unknown]
+rustflags = ["--cfg=web_sys_unstable_apis"]
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -32,8 +38,10 @@ version = "^0"
 default-features = false
 
 [dependencies.web-sys]
-version = "0.3.49"
+version = "0.3.57"
 features = [
   'Window',
-  'console'
+  'console',
+  'Navigator',
+  'Clipboard'
 ]

@@ -1,6 +1,5 @@
 use crate::obsidian;
 use crate::request;
-use crate::shim;
 use crate::transform;
 use js_sys::{Error, JsString, Promise};
 use thiserror::Error;
@@ -9,6 +8,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 use web_sys::console;
+use web_sys::window;
 use yaml_rust::emitter::{EmitError, YamlEmitter};
 use yaml_rust::scanner::ScanError;
 
@@ -109,6 +109,12 @@ pub enum ExtractError {
 
     #[error("error transforming content. {0}")]
     Transform(#[from] transform::TransformError),
+
+    #[error("no clipboard available")]
+    NoClipboard,
+
+    #[error("no url in clipboard")]
+    NoClipboardContent,
 }
 
 impl std::convert::From<JsValue> for ExtractError {
@@ -127,6 +133,20 @@ impl std::convert::From<obsidian::View> for ExtractError {
     }
 }
 
+async fn read_clipboard() -> Result<String, ExtractError> {
+    Ok(JsFuture::from(
+        window()
+            .ok_or(ExtractError::NoClipboard)?
+            .navigator()
+            .clipboard()
+            .ok_or(ExtractError::NoClipboard)?
+            .read_text(),
+    )
+    .await?
+    .as_string()
+    .ok_or(ExtractError::NoClipboardContent)?)
+}
+
 async fn extract_url(
     plugin: &obsidian::Plugin,
     title_only: bool,
@@ -140,7 +160,7 @@ async fn extract_url(
         let view: obsidian::MarkdownView = md_view.dyn_into()?;
         let editor = view.source_mode().cm_editor();
         let url_str = if use_clipboard {
-            shim::clipboard_read_text()
+            read_clipboard().await?
         } else {
             editor.get_selection()
         };

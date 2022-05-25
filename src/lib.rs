@@ -14,9 +14,7 @@ use wasm_bindgen::prelude::*;
 pub async fn onload(plugin: obsidian::Plugin) {
     plugin.addCommand(JsValue::from(extract::command_extract_url()));
     plugin.addCommand(JsValue::from(extract::command_extract_url_from_url()));
-    if *obsidian::DESKTOP {
-        plugin.addCommand(JsValue::from(extract::command_import_url()));
-    }
+    plugin.addCommand(JsValue::from(extract::command_import_url()));
     plugin.addCommand(JsValue::from(archive::command_archive()));
 }
 
