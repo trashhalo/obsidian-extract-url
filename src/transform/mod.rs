@@ -1,3 +1,4 @@
+mod github;
 mod oembed;
 use crate::extract::Markdown;
 use html2md::parse_html;
@@ -13,6 +14,9 @@ pub enum TransformError {
 
     #[error("error converting oembed data. {0}")]
     Oembed(#[from] oembed::OembedError),
+
+    #[error("error geting github readme. {0}")]
+    Github(#[from] github::GithubError),
 }
 
 pub async fn readable_content(body: String, url: &Url) -> Result<Markdown, TransformError> {
@@ -45,6 +49,10 @@ pub async fn transform_url(
     title_only: bool,
     body: String,
 ) -> Result<Markdown, TransformError> {
+    if github::is_repo(url) {
+        return Ok(github::transform_url(url, title_only, body).await?);
+    }
+
     if title_only {
         match oembed::oembed_title(body.clone(), url).await {
             Ok(o) => Ok(o),

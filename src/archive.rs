@@ -16,7 +16,8 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::{future_to_promise, JsFuture};
 
 lazy_static! {
-    static ref URL_REGEX: Regex = Regex::new(r"(?<!#\s)\[(?P<text>.*)\]\((?P<url>.*)\)").unwrap();
+    static ref URL_REGEX: Regex =
+        Regex::new(r"(?<!#\s)\[(?P<text>.*)\]\((?P<url>http.*)\)").unwrap();
     static ref TITLE_REGEX: Regex = Regex::new(r"[^a-zA-Z0-9\-\s]").unwrap();
 }
 
