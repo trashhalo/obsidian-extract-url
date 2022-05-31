@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub async fn onload(plugin: obsidian::Plugin) {
     plugin.addCommand(JsValue::from(extract::command_extract_url()));
-    plugin.addCommand(JsValue::from(extract::command_extract_url_from_url()));
+    plugin.addCommand(JsValue::from(extract::command_extract_url_title_only()));
     plugin.addCommand(JsValue::from(extract::command_import_url()));
     plugin.addCommand(JsValue::from(archive::command_archive()));
 }

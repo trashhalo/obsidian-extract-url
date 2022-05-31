@@ -1,7 +1,7 @@
 {
   "id": "extract-url",
   "name": "Extract url content",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "Extract url converting content into markdown",
   "author": "Stephen Solka",
   "authorUrl": "https://github.com/trashhalo",

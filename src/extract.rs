@@ -69,7 +69,7 @@ pub fn command_extract_url() -> ExtractCommand {
     }
 }
 
-pub fn command_extract_url_from_url() -> ExtractCommand {
+pub fn command_extract_url_title_only() -> ExtractCommand {
     ExtractCommand {
         id: JsString::from("extract-title-from-url"),
         name: JsString::from("Title Only"),

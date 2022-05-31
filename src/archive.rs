@@ -85,7 +85,7 @@ enum ArchiveError {
 
 pub fn command_archive() -> ArchiveCommand {
     ArchiveCommand {
-        id: JsString::from("extract-url"),
+        id: JsString::from("archive-url"),
         name: JsString::from("Archive"),
     }
 }
